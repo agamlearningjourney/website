@@ -38,14 +38,6 @@ phone: +46 764272125
 #   - 'Wednesday 09:00 to 10:00'
 # appointment_url: 'https://calendly.com'
 # contact_links:
-#   - icon: twitter
-#     icon_pack: fab
-#     name: DM Me
-#     link: 'https://twitter.com/Twitter'
-#   - icon: skype
-#     icon_pack: fab
-#     name: Skype Me
-#     link: 'skype:echo123?call'
 #   - icon: keybase
 #     icon_pack: fab
 #     name: Chat on Keybase
