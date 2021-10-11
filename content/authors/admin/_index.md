@@ -1,27 +1,25 @@
 ---
-bio: My research interests include distributed robotics, mobile computing and programmable
-  matter.
+bio: 
 education:
   courses:
-  - course: PhD in Artificial Intelligence
-    institution: Stanford University
-    year: 2012
-  - course: MEng in Artificial Intelligence
-    institution: Massachusetts Institute of Technology
-    year: 2009
-  - course: BSc in Artificial Intelligence
-    institution: Massachusetts Institute of Technology
-    year: 2008
+  - course: PhD in Finance
+    institution: Stockholm School of Economics
+    year: 2022 (Expected)
+  - course: MSc in Financial Engineering
+    institution: University of Illinois at Urbana-Champaign
+    year: 2016
+  - course: BSc in Industrial Engineering
+    institution: Bandung Institute of Technology
+    year: 2010
 email: ""
 highlight_name: true
 interests:
-- Artificial Intelligence
-- Computational Linguistics
-- Information Retrieval
+- Empirical asset pricing
+- Statistical learning
 organizations:
-- name: Stanford University
-  url: https://www.stanford.edu/
-role: Professor of Artificial Intelligence
+- name: Stockholm School of Economics
+  url: 
+role: 
 social:
 - icon: envelope
   icon_pack: fas
