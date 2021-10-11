@@ -48,4 +48,4 @@ title: Hendro Sugandi
 Welcome to my website.
 I am a PhD candidate in Finance at the Stockholm School of Economics. My research interests are in empirical asset pricing and statistical learning. I am on the job market and will be available for interviews at both the EEA 2021 and ASSA 2022 virtual meetings.
 
-{{< icon name="download" pack="fas" >}} Download my {{< staticref "uploads/resume.pdf" "newtab" >}}resumé{{< /staticref >}}.
+

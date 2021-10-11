@@ -1,7 +1,7 @@
 ---
 # An instance of the Portfolio widget.
 # Documentation: https://wowchemy.com/docs/page-builder/
-widget: portfolio
+widget: blank
 
 # This file represents a page section.
 headless: true
@@ -9,7 +9,7 @@ headless: true
 # Order that this section appears on the page.
 weight: 20
 
-title: Projects
+title: Research
 subtitle: ''
 
 content:
@@ -46,3 +46,9 @@ design:
   # For Showcase view, flip alternate rows?
   flip_alt_rows: false
 ---
+
+- **Working paper** (JMP): [Investors' expectation, analysts' forecasts, and arbitrage risks](https://www.google.com/)
+  - **Abstract**: This study examines differences in expectations, about firms’ earnings, between analysts and investors around earnings announcement. Stocks with high (low) analysts’ consensus earnings forecasts have positive (negative) earnings announcement returns, even after controlling for analysts’ forecast error. This finding demonstrates that analysts’ expectations are not fully reflected in prices prior to earnings announcement days, and investors systematically underweight analysts’ consensus forecasts. On average, aggregate investors are more optimistic (pessimistic) compared to analysts’ consensus forecasts for stocks with low (high) analysts’ consensus earnings forecasts. The differences in expectations are particularly strong in stocks that are difficult to value.
+- **Work in progress**:
+  - Mutual funds and market anomalies
+  - Target leverage and the cross-section of stock returns (joint with Michael Halling)
