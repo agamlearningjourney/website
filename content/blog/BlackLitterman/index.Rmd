@@ -1,18 +1,16 @@
 ---
 title: 'Black and Litterman'
+date: "2021-01-30"
+summary: Learning about Black and Litterman
+toc: true
 output:
-  html_document:
-    number_sections: yes
-    toc: yes
-  word_document:
-    toc: yes
-  pdf_document:
-    toc: yes
+  blogdown::html_page:
+    toc: true
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE,message=FALSE, warning=FALSE)
-# knitr::opts_chunk$set(echo = FALSE , message=FALSE, warning=FALSE) # not printing code
+# knitr::opts_chunk$set(echo = TRUE,message=FALSE, warning=FALSE)
+knitr::opts_chunk$set(echo = FALSE , message=FALSE, warning=FALSE) # not printing code
 
 ```
 
