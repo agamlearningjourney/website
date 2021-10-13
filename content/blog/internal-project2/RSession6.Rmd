@@ -1,0 +1,486 @@
+---
+title: '4329: RSession6, Black and Litterman'
+output:
+  html_document:
+    number_sections: yes
+    toc: yes
+  word_document:
+    toc: yes
+  pdf_document:
+    toc: yes
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,message=FALSE, warning=FALSE)
+# knitr::opts_chunk$set(echo = FALSE , message=FALSE, warning=FALSE) # not printing code
+
+```
+
+# Introduction
+
+- Black-Litterman theory and steps of implementation
+- Implementation of Black and Litterman (BL) model for global equity allocation
+
+
+# Black - Litterman steps 
+
+**Notation** (alphabetic order):
+
+- $\delta =$ risk aversion parameter, represents average risk tolerance of the world
+- $\epsilon =$ error term to reflect uncertainty
+- $K =$ number of investor's views
+- $\mu =$ expected returns
+- $\bar{\mu} =$ BL expected returns
+- $N =$ number of assets
+- $\Omega =$ diagonal covariance matrix of error terms from investor's view
+- $\pmb{1} =$ $N \times 1$matrix of 1
+- $P = K \times N$ matrix, the rows are portfolio weights to reflect investor's view
+- $\Pi =$ equilibrium risk premiums
+- $Q = K$ vector of the expected returns on the $P$ portfolios that reflect investor's view
+- $r =$ vector of asset returns
+- $\Sigma =$ covariance matrix
+- $\bar{\Sigma}  =$ BL covariance matrix
+- $\tau =$ a scalar indicating the uncertainty of the CAPM prior
+- $w =$ weight of optimal portfolio from mean variance optimization
+- $w_{eq} =$ weight at equilibrium, i.e. asset's weight in market portfolio
+
+**Steps:**
+
+- Assume that $r \sim N(\mu, \Sigma)$
+- Calculate CAPM equilibrium risk premium for prior belief.
+  - Input: $w_{eq}, \delta, \Sigma$
+  - Process: $\Pi = \delta \Sigma w_{eq}$
+  - Output: $\Pi$
+- Using Bayesian approach, find the expected returns and returns distribution. Use the CAPM prior and additional investor's views.
+  - Input: $\Pi, \Sigma, \tau, P, Q$
+  - Process:
+    - Bayesian prior: $\mu = \Pi + \epsilon^{(e)}$
+      - Where $\epsilon^{(e)} \sim N(0, \tau \Sigma)$
+    - Investor's view: $P \mu = Q + \epsilon^{(v)}$
+      - Where $\epsilon^{(v)} \sim N(0, \Omega)$ 
+      - $\Omega = P \Sigma P' \tau$ 
+    - Distribution of **Expected return**
+      - $\mu \sim N \Big(\bar{\mu}, \bar{M}^{-1} \Big)$
+      - $\bar{\mu} = [(\tau \Sigma )^{-1} + P' \Omega^{-1} P ]^{-1} [(\tau \Sigma )^{-1} \Pi + P' \Omega^{-1} Q ]$
+      - $\bar{M}^{-1} = [(\tau \Sigma )^{-1} + P' \Omega^{-1} P ]^{-1}$
+    - Distribution of **return**
+      - $r \sim N \Big(\bar{\mu}, \bar{\Sigma}  \Big)$
+      - where $\bar{\Sigma} = \Sigma + \bar{M}^{-1}$
+    - In case of no additional investor's view:
+      - P and Q are zero, hence: $r \sim N \Big(\bar{\mu} = \Pi, \bar{\Sigma} = (1+ \tau) \Sigma \Big)$
+  - Output: distribution of return, posterior, $r \sim N \Big(\bar{\mu}, \bar{\Sigma}  \Big)$
+- Optimize the allocation based on the posterior estimates using the standard mean-variance optimization method
+  - Input: Distribution of (posterior) **return** = $r \sim N \Big(\bar{\mu}, \bar{\Sigma}  \Big)$
+  - Process:
+    - min $w' \bar{\Sigma} w$
+    - subject to :
+      - $w' \bar{\mu} = constant$
+      - $w' \pmb{1} = 1$
+      - $w_{n} \geq 0$ for $n = 1,2,...,N$
+  - Output: $w$
+
+
+
+# Library
+
+```{r}
+library(dplyr)
+library(tidyr)
+library(conflicted) # to show error if there is conflicted function
+library(ggplot2)
+library(quadprog) #to use solve.QP function 
+library(MASS) #to use mvrnorm function
+
+conflict_prefer("filter", "dplyr")
+conflict_prefer("select", "dplyr")
+
+```
+
+# Step 1 
+
+Download some country's (Australia, Canada, France, Germany, Japan, UK, USA):
+
+- Market capitalization weight. Source: World Federation of Exchanges database, accessed from [data.worldbank.org](https://data.worldbank.org/indicator/CM.MKT.LCAP.CD). 
+- [Market capitalization for UK](https://sdw.ecb.europa.eu/quickview.do?SERIES_KEY=181.SEE.A.GB.LSE0.MKP.W.N)
+- Equity index: use iShares MSCI for USD currency from Yahoo Finance. 
+- Risk free rate: [Prof. French's website](http://mba.tuck.dartmouth.edu/pages/faculty/ken.french/index.html)
+
+Correlation and covariance matrix.
+
+```{r}
+load("Return_marketcap.RData")
+
+df_cor <- cor(df_stock_ret %>% select(-date))
+
+Sigma <- cov(df_stock_ret %>% select(-date))
+
+```
+
+# Step 2
+
+Calculate $\Pi = \delta \Sigma w_{eq}$. To be used as neutral reference (prior belief) of expected return.
+
+```{r}
+w_eq <- df_marketcap$w_eq/sum(df_marketcap$w_eq)
+names(w_eq) <- df_marketcap$symbol
+delta <- 2.5 # He and Litterman, 2002
+
+Pi <- delta * Sigma %*% w_eq
+
+```
+
+
+# Step 3
+
+Calculate $\bar{\mu}$ and $\bar{\Sigma}$ for:
+
+- 1 relative view: long position in German equity and short position in UK has 5% (annual) return.
+- 1 absolute view: US equity market will have (annual) return of 10%.
+- 1 relative view and 1 absolute view
+
+P is $K \times N$ matrix. The matrix for each case is:
+
+```{r}
+tau <- 0.05 # He and Litterman, 2002
+
+# P matrix
+P_E1 <- matrix(c(0,0,1,0,0,-1,0), nrow = 1, byrow = TRUE)
+colnames(P_E1) <- colnames(Sigma)  
+  
+P_E2 <- matrix(c(0,0,0,0,0,0,1), nrow = 1, byrow = TRUE)
+colnames(P_E2) <- colnames(Sigma)  
+
+P_E3 <- rbind(P_E1, P_E2)
+
+```
+
+
+Calculate posterior.
+
+```{r}
+# Black and Litterman function
+# output: mu bar, sigma bar, omega
+f_BL <- function(Pi, tau, Sigma, P, Q ) {
+  ## CALCULATE Omega
+  if (nrow(P) == 1) {
+    Omega <- P %*% Sigma %*% t(P) * tau
+  } else {
+    Omega <- diag(diag(P %*% Sigma %*% t(P) * tau))
+  }
+  
+  ## CALCULATE mu bar
+  mu_bar <- (solve(solve(tau * Sigma) + t(P) %*% solve(Omega) %*% P)) %*%
+    (solve(tau * Sigma) %*% Pi + t(P) %*% solve(Omega) %*% Q)
+
+  ## CALCULATE Sigma bar
+  Sigma_bar <- Sigma + solve(solve(tau * Sigma) + t(P) %*% solve(Omega) %*% P)
+
+  ## Store result 
+  ls_res <- list(Omega = Omega, mu_bar = mu_bar, Sigma_bar = Sigma_bar)
+  
+  return(ls_res)
+}
+
+# BL_Ex1: Black Litterman, example 1
+# 5% annual excess return, make monthly 
+BL_Ex1 <- f_BL(Pi = Pi, tau = tau, Sigma = Sigma, 
+               P = P_E1, Q = (1+(5/100))^(1/12)-1 ) 
+BL_Ex2 <- f_BL(Pi = Pi, tau = tau, Sigma = Sigma, 
+               P = P_E2, Q = (1+(10/100))^(1/12)-1 ) 
+BL_Ex3 <- f_BL(Pi = Pi, tau = tau, Sigma = Sigma, 
+               P = P_E3, 
+               Q = c( (1+(5/100))^(1/12)-1 , (1+(10/100))^(1/12)-1 ) ) 
+
+```
+
+
+# Step 4
+
+Comparing optimization for different scenario:
+
+- historical average, 
+- prior, 
+- posterior allocation:
+  - 1 relative view
+  - 1 absolute view
+  - 1 relative view and 1 absolute view
+
+
+## Use Quadratic programming
+
+No short-sale constraint
+
+```{r}
+# function mean variance
+# output: mean and variance of portfolio, weight
+f_MV <- function(Sigma_f = Sigma,
+                 mu_f = Pi,
+                 r_p = seq(from = 0.001, to = 0.006, length.out = 21)
+                 ) {
+  
+  for(i in 1:length(r_p)) {
+    n_asset <- nrow(Sigma_f)
+    asset_names <- rownames(Sigma_f)
+    Dmat       <- Sigma_f
+    dvec       <- rep(0,n_asset)
+    Amat       <- cbind(mu_f, rep(1,n_asset)) # first column for E[r_p], second column for w_p
+    bvec       <- c(r_p[i],1) # 0.001 - 0.006
+    
+    # meq to make both equality
+    QP_sol <- solve.QP(Dmat,dvec,Amat,bvec=bvec, meq = 2)
+    
+    sum(QP_sol$solution); QP_sol$solution; t(QP_sol$solution) %*% mu_f; t(QP_sol$solution) %*% Sigma_f %*% (QP_sol$solution)
+    
+    ## store result
+    df_loop <- data.frame(r_p = r_p[i],
+                          r_p_m = as.numeric(t(QP_sol$solution) %*% mu_f),
+                          var_p = as.numeric(t(QP_sol$solution) %*% Sigma_f %*% (QP_sol$solution)),
+                          w_p = QP_sol$solution,
+                          asset_names = asset_names)
+    
+    if (i == 1) {
+      df_str <- df_loop
+    } else {
+      df_str <- rbind(df_str, df_loop) 
+    }
+    
+  }
+  
+  
+  return(df_str) 
+  
+}
+
+## Run function
+## df_prior, df prior : weight, rp, Sp 
+df_prior <- f_MV(Sigma_f = (1+tau)*Sigma,
+     mu_f = Pi,
+     r_p = seq(from = 0.001, to = 0.020, length.out = 21) ) 
+
+## historical mean
+df_RETmean <- df_stock_ret %>%
+  gather(key = "symbol", value = "RET", -date) %>%
+  group_by(symbol) %>%
+  summarise(RET_mean = mean(RET ) ) %>%
+  ungroup() %>%
+  arrange(symbol)
+
+df_hist_mean <- f_MV(Sigma_f = Sigma,
+     mu_f = df_RETmean$RET_mean,
+     r_p = seq(from = 0.001, to = 0.020, length.out = 21) ) 
+
+## df_post_E1: df posterior Example 1
+df_post_E1 <- f_MV(Sigma_f = BL_Ex1$Sigma_bar,
+     mu_f = BL_Ex1$mu_bar,
+     r_p = seq(from = 0.001, to = 0.020, length.out = 21) ) 
+
+## df_post_E2: df posterior Example 2
+df_post_E2 <- f_MV(Sigma_f = BL_Ex2$Sigma_bar,
+     mu_f = BL_Ex2$mu_bar,
+     r_p = seq(from = 0.001, to = 0.020, length.out = 21) ) 
+
+## df_post_E3: df posterior Example 3
+df_post_E3 <- f_MV(Sigma_f = BL_Ex3$Sigma_bar,
+     mu_f = BL_Ex3$mu_bar,
+     r_p = seq(from = 0.001, to = 0.020, length.out = 21) ) 
+
+## PLOT result
+# plot rp and varp
+df_plot <- df_prior %>% distinct(r_p, var_p) %>% mutate(df_type = "prior") %>%
+  rbind(df_hist_mean %>% distinct(r_p, var_p) %>% mutate(df_type = "hist_mean")) %>%
+  rbind(df_post_E1 %>% distinct(r_p, var_p) %>% mutate(df_type = "post_E1")) %>%
+  rbind(df_post_E2 %>% distinct(r_p, var_p) %>% mutate(df_type = "post_E2")) %>%
+  rbind(df_post_E3 %>% distinct(r_p, var_p) %>% mutate(df_type = "post_E3"))
+  
+ggplot(data = df_plot,
+       aes(x = var_p, y= r_p, col = df_type) ) +
+  geom_point()
+
+```
+
+With short-sale constraint
+
+```{r}
+# f_MV_ssc: function mean variance short-sale constraint
+# output: mean and variance of portfolio, weight
+f_MV_ssc <- function(Sigma_f = Sigma,
+                 mu_f = Pi,
+                 r_p = seq(from = 0.001, to = 0.006, length.out = 21)
+                 ) {
+  
+  
+  for(i in 1:length(r_p)) {
+    
+    n_asset <- nrow(Sigma_f)
+    asset_names <- rownames(Sigma_f)
+    Dmat       <- Sigma_f
+    dvec       <- rep(0,n_asset)
+    Amat       <- cbind(cbind(mu_f, rep(1,n_asset)), diag(x=n_asset)) # first column for E[r_p], second column for w_p
+    bvec       <- c(r_p[i],1, rep(0,n_asset)) # 0.001 - 0.006
+    
+    # meq to make both equality
+    QP_sol <- tryCatch(solve.QP(Dmat,dvec,Amat,bvec=bvec, meq = 2), 
+                       error=function(e) NA)
+    
+    ## store result
+    if (is.logical(QP_sol)) {
+      df_loop <- data.frame(r_p = r_p[i],
+                            r_p_m = NA,
+                            var_p = NA,
+                            w_p = NA,
+                            asset_names = asset_names)
+      
+    } else {
+      df_loop <- data.frame(r_p = r_p[i],
+                            r_p_m = as.numeric(t(QP_sol$solution) %*% mu_f),
+                            var_p = as.numeric(t(QP_sol$solution) %*% Sigma_f %*% (QP_sol$solution)),
+                            w_p = QP_sol$solution,
+                            asset_names = asset_names)
+      
+    }
+    
+    
+    if (i == 1) {
+      df_str <- df_loop
+    } else {
+      df_str <- rbind(df_str, df_loop) 
+    }
+    
+  }
+  
+  
+  return(df_str) 
+  
+}
+
+
+
+## Run function
+## df_prior, df prior : weight, rp, Sp 
+df_prior <- f_MV_ssc(Sigma_f = (1+tau)*Sigma,
+     mu_f = Pi,
+     r_p = seq(from = 0.00385, to = 0.00670, length.out = 100) ) 
+
+## df_hist_mean
+df_hist_mean <- f_MV_ssc(Sigma_f = Sigma,
+     mu_f = df_RETmean$RET_mean,
+     r_p = seq(from = 0.00079650, to = 0.007065, length.out = 100) ) 
+
+## df_post_E1: df posterior Example 1
+df_post_E1 <- f_MV_ssc(Sigma_f = BL_Ex1$Sigma_bar,
+     mu_f = BL_Ex1$mu_bar,
+     r_p = seq(from = 0.00385, to = 0.00860, length.out = 100) ) 
+
+## df_post_E2: df posterior Example 2
+df_post_E2 <- f_MV_ssc(Sigma_f = BL_Ex2$Sigma_bar,
+     mu_f = BL_Ex2$mu_bar,
+     r_p = seq(from = 0.00480, to = 0.00955, length.out = 100) ) 
+
+## df_post_E3: df posterior Example 3
+df_post_E3 <- f_MV_ssc(Sigma_f = BL_Ex3$Sigma_bar,
+     mu_f = BL_Ex3$mu_bar,
+     r_p = seq(from = 0.00480, to = 0.01050, length.out = 100) ) 
+
+
+## PLOT result
+# plot rp and varp
+df_plot <- df_prior %>% drop_na() %>% distinct(r_p, var_p) %>% 
+  mutate(df_type = "prior") %>%
+  rbind(df_hist_mean %>% drop_na() %>% distinct(r_p, var_p) %>% 
+          mutate(df_type = "hist_mean")) %>%
+  rbind(df_post_E1 %>% drop_na() %>% distinct(r_p, var_p) %>% 
+          mutate(df_type = "post_E1")) %>%
+  rbind(df_post_E2 %>% drop_na() %>% distinct(r_p, var_p) %>% 
+          mutate(df_type = "post_E2")) %>%
+  rbind(df_post_E3 %>% drop_na() %>% distinct(r_p, var_p) %>% 
+          mutate(df_type = "post_E3"))
+
+# select efficient only  
+df_plot <- df_plot %>%
+  # find return at
+  group_by(df_type) %>%
+  mutate(rp_min_var = r_p[which(var_p == min(var_p))]) %>%
+  ungroup() %>%
+  # select efficient frontier only
+  filter(r_p >= rp_min_var)
+
+# plot
+ggplot(data = df_plot,
+       aes(x = var_p, y= r_p, col = df_type) ) +
+  geom_point()
+
+# plot weight (if we put short-sale constraint)
+df_plot <- df_prior %>% drop_na() %>% mutate(df_type = "prior") %>%
+  rbind(df_hist_mean %>% drop_na() %>% mutate(df_type = "hist_mean")) %>%
+  rbind(df_post_E1 %>% drop_na() %>% mutate(df_type = "post_E1")) %>%
+  rbind(df_post_E2 %>% drop_na() %>% mutate(df_type = "post_E2")) %>%
+  rbind(df_post_E3 %>% drop_na() %>% mutate(df_type = "post_E3"))
+
+# select efficient only  
+df_plot <- df_plot %>%
+  # find return at
+  group_by(df_type) %>%
+  mutate(rp_min_var = r_p[which(var_p == min(var_p))][1]) %>%
+  ungroup() %>%
+  # select efficient frontier only
+  filter(r_p >= rp_min_var)  
+
+ggplot(data = df_plot,
+       aes(x = r_p, y= w_p, fill = asset_names) ) +
+  geom_area(position="stack", stat="identity") +
+  facet_grid(rows = vars(df_type) )
+
+```
+
+
+## How the belief change from prior to posterior 
+
+Simulate data and plot distribution
+
+```{r}
+n_data <- 100000
+scale_var <- 1 # for a clearer difference in distribution, set to 10 
+
+df_S_hist_mean <- mvrnorm(n = n_data, 
+                    mu = df_RETmean$RET_mean*scale_var, 
+                    Sigma = Sigma)
+
+df_S_prior <- mvrnorm(n = n_data, 
+                    mu = Pi*scale_var, 
+                    Sigma = (1+tau)*Sigma)
+
+df_S_postEX1 <- mvrnorm(n = n_data, 
+                    mu = BL_Ex1$mu_bar*scale_var , 
+                    Sigma = BL_Ex1$Sigma_bar)
+
+df_S_postEX2 <- mvrnorm(n = n_data, 
+                    mu = BL_Ex2$mu_bar*scale_var, 
+                    Sigma = BL_Ex2$Sigma_bar)
+
+df_S_postEX3 <- mvrnorm(n = n_data, 
+                    mu = BL_Ex3$mu_bar*scale_var, 
+                    Sigma = BL_Ex3$Sigma_bar)
+
+df_plot <- as.data.frame(df_S_hist_mean) %>% mutate(ret_belief = "hist_mean") %>%
+  rbind(as.data.frame(df_S_prior) %>% mutate(ret_belief = "prior")) %>%
+  rbind(as.data.frame(df_S_postEX1) %>% mutate(ret_belief = "postEX1")) %>%
+  rbind(as.data.frame(df_S_postEX2) %>% mutate(ret_belief = "postEX2")) %>%
+  rbind(as.data.frame(df_S_postEX3) %>% mutate(ret_belief = "postEX3"))
+
+ggplot(df_plot, aes(x = SPY, col = ret_belief)) +
+  geom_density()
+                     
+
+```
+
+# Reference and further reading
+
+- [Black and Litterman, Global Portfolio Optimization, 1992](https://www.cfainstitute.org/en/research/financial-analysts-journal/1992/faj-v48-n5-28)
+- [Cheung, The Black–Litterman model explained, 2010](https://link.springer.com/article/10.1057/jam.2009.28)
+- [He and Litterman, The Intuition Behind Black-Litterman Model Portfolios, 2002](https://papers.ssrn.com/sol3/papers.cfm?abstract_id=334304)
+- [Idzorek, A Step-By-Step Guide to the Black-Litterman Model Incorporating User-specified Confidence Levels, 2005](https://papers.ssrn.com/sol3/papers.cfm?abstract_id=3479867)
+- [Satchell and Scowcroft, A demystification of the Black–Litterman model: Managing quantitative and traditional portfolio construction, 2000](https://link.springer.com/article/10.1057/palgrave.jam.2240011)
+
+
+
+
