@@ -47,8 +47,8 @@ design:
   flip_alt_rows: false
 ---
 
-- **Working paper** (JMP): [Investors' expectation, analysts' forecasts, and arbitrage risks](https://www.google.com/)
-  - **Abstract**: This study examines differences in expectations, about firms’ earnings, between analysts and investors around earnings announcement. Stocks with high (low) analysts’ consensus earnings forecasts have positive (negative) earnings announcement returns, even after controlling for analysts’ forecast error. This finding demonstrates that analysts’ expectations are not fully reflected in prices prior to earnings announcement days, and investors systematically underweight analysts’ consensus forecasts. On average, aggregate investors are more optimistic (pessimistic) compared to analysts’ consensus forecasts for stocks with low (high) analysts’ consensus earnings forecasts. The differences in expectations are particularly strong in stocks that are difficult to value.
+- **Working paper** (JMP): Information uncertainty and investors’ expectations: evidence from earnings announcements
+  - **Abstract**: This paper investigates how information uncertainty amplifies investors’ expectation errors. I use earnings announcement periods to observe the change in investors’ expected firms’ payoffs. I show that investors are too optimistic (pessimistic) for stocks with low (high) expected earnings. The errors in expectations are large (small) in stocks with high (low) information uncertainty. Given a high level of information uncertainty, analysts’ estimates tend to be inaccurate and imprecise, and investors’ beliefs deviate from analysts’ forecasts.
 - **Work in progress**:
   - Mutual funds and market anomalies
   - Target leverage and the cross-section of stock returns (joint with Michael Halling)
