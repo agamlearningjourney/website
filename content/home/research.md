@@ -47,8 +47,8 @@ design:
   flip_alt_rows: false
 ---
 
-- **Working paper** (JMP): Information uncertainty and investors’ expectations: evidence from earnings announcements
-  - **Abstract**: This paper investigates how information uncertainty amplifies investors’ expectation errors. I use earnings announcement periods to observe the change in investors’ expected firms’ payoffs. I show that investors are too optimistic (pessimistic) for stocks with low (high) expected earnings. The errors in expectations are large (small) in stocks with high (low) information uncertainty. Given a high level of information uncertainty, analysts’ estimates tend to be inaccurate and imprecise, and investors’ beliefs deviate from analysts’ forecasts.
+- **Working paper** (JMP): [Information uncertainty and investors’ expectations: evidence from earnings announcements](uploads/Hendro Sugandi JMP 20211125.pdf)
+  - **Abstract**: This paper investigates the relationships among information uncertainty, investors’ expectation errors, and earnings announcement returns. I use earnings announcement periods to observe the change in investors’ expectations about the firms’ future earnings prospects. Investors are too optimistic (pessimistic) about the prospects of stocks with low (high) expected earnings. Thus, stocks with low and high expected earnings tend to be overpriced and underpriced before the earnings announcements, respectively. The errors in expectations are larger for stocks with high information uncertainty. Hence, the effect of information uncertainty on earnings announcement returns is conditional on the stocks’ mispricing levels. Information uncertainty is positively (negatively) related to earnings announcement returns for underpriced (overpriced) stocks.
 - **Work in progress**:
   - Mutual funds and market anomalies
   - Target leverage and the cross-section of stock returns (joint with Michael Halling)
